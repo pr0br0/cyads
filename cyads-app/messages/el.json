@@ -1,0 +1,41 @@
+{
+  "app": {
+    "name": "CyAds Μικρές Αγγελίες",
+    "tagline": "Βρείτε ό,τι χρειάζεστε στην Κύπρο"
+  },
+  "navigation": {
+    "home": "Αρχική",
+    "categories": "Κατηγορίες",
+    "post_ad": "Δημοσίευση Αγγελίας",
+    "search": "Αναζήτηση",
+    "profile": "Προφίλ",
+    "settings": "Ρυθμίσεις",
+    "login": "Σύνδεση",
+    "signup": "Εγγραφή",
+    "logout": "Αποσύνδεση"
+  },
+  "categories": {
+    "all": "Όλες οι Κατηγορίες",
+    "property": "Ακίνητα",
+    "vehicles": "Οχήματα",
+    "jobs": "Εργασία",
+    "services": "Υπηρεσίες",
+    "electronics": "Ηλεκτρονικά",
+    "furniture": "Έπιπλα"
+  },
+  "form": {
+    "title": "Τίτλος",
+    "description": "Περιγραφή",
+    "price": "Τιμή",
+    "location": "Τοποθεσία",
+    "submit": "Υποβολή",
+    "cancel": "Ακύρωση"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Κωδικός",
+    "phone": "Αριθμός Τηλεφώνου",
+    "forgot_password": "Ξεχάσατε τον κωδικό;",
+    "register": "Εγγραφή"
+  }
+} 

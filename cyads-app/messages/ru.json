@@ -1,0 +1,41 @@
+{
+  "app": {
+    "name": "CyAds Объявления",
+    "tagline": "Найдите то, что вам нужно на Кипре"
+  },
+  "navigation": {
+    "home": "Главная",
+    "categories": "Категории",
+    "post_ad": "Подать объявление",
+    "search": "Поиск",
+    "profile": "Профиль",
+    "settings": "Настройки",
+    "login": "Вход",
+    "signup": "Регистрация",
+    "logout": "Выход"
+  },
+  "categories": {
+    "all": "Все категории",
+    "property": "Недвижимость",
+    "vehicles": "Транспорт",
+    "jobs": "Работа",
+    "services": "Услуги",
+    "electronics": "Электроника",
+    "furniture": "Мебель"
+  },
+  "form": {
+    "title": "Заголовок",
+    "description": "Описание",
+    "price": "Цена",
+    "location": "Местоположение",
+    "submit": "Отправить",
+    "cancel": "Отмена"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Пароль",
+    "phone": "Номер телефона",
+    "forgot_password": "Забыли пароль?",
+    "register": "Зарегистрироваться"
+  }
+} 
