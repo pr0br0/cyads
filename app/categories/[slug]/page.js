@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { MapPin, Calendar } from 'lucide-react';
-import CategoryFilters from '@/components/CategoryFilters';
+import CategoryFilters from '../../components/CategoryFilters';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,

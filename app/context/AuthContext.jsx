@@ -2,54 +2,42 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { useRouter } from 'next/navigation';
 
-const AuthContext = createContext({});
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
-    // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Listen for changes on auth state (logged in, signed out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      setUser(session?.user || null);
       setLoading(false);
-      router.refresh();
     });
 
-    return () => subscription.unsubscribe();
-  }, [router]);
-
-  const signUp = async (email, password) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+    // Initial check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+      setLoading(false);
     });
-    return { data, error };
-  };
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
 
   const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { data, error };
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error };
+  };
+
+  const signUp = async (email, password) => {
+    const { error } = await supabase.auth.signUp({ email, password });
+    return { error };
   };
 
   const signOut = async () => {
@@ -60,18 +48,19 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     loading,
-    signUp,
     signIn,
+    signUp,
     signOut,
+    supabase
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }
 
-export const useAuth = () => {
+export function useAuth() {
   return useContext(AuthContext);
-}; 
+} 

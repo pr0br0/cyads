@@ -3,7 +3,7 @@ import { ThemeProvider } from '../components/ThemeProvider';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import '../app/globals.css';
-import { AuthProvider } from '@/context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 
 const inter = Inter({ subsets: ['latin', 'greek', 'cyrillic'] });
 
