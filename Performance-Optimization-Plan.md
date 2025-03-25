@@ -1,330 +1,126 @@
 # Performance Optimization Plan for CyAds
 
-## Current Performance Assessment
-
-Based on the codebase review, the main performance opportunities are:
-
-1. Image loading and optimization
-2. Bundle size reduction
-3. Data fetching efficiency
-4. Rendering performance
-5. Caching strategies
+## Current Status
+- Images are loaded without optimization
+- No code splitting implemented
+- No caching strategy for static assets
+- No performance monitoring in place
 
 ## Optimization Strategies
 
 ### 1. Image Optimization
+1. **Next.js Image Component**:
+   ```jsx
+   import Image from 'next/image';
 
-#### Implement Next.js Image Component
+   <Image
+     src="/ads/image.jpg"
+     alt="Ad image"
+     width={500}
+     height={300}
+     quality={80}
+     priority={false}
+     loading="lazy"
+   />
+   ```
 
-```jsx
-// Replace all <img> tags with Next.js Image component
-import Image from 'next/image';
+2. **Image CDN Integration**:
+   ```js
+   // lib/utils.js
+   export function getOptimizedImageUrl(path, width, quality = 80) {
+     return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/render/image/public/${path}?width=${width}&quality=${quality}`;
+   }
+   ```
 
-function AdImage({ src, alt }) {
-  return (
-    <Image
-      src={src}
-      alt={alt}
-      width={800}  // Set appropriate dimensions
-      height={600}
-      className="object-cover"
-      priority={false} // Only for above-the-fold images
-      quality={75} // Reduce quality for smaller files
-      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-    />
-  );
-}
-```
+### 2. Code Splitting
+1. **Dynamic Imports**:
+   ```jsx
+   const Map = dynamic(() => import('../components/Map'), {
+     ssr: false,
+     loading: () => <LoadingSpinner />
+   });
+   ```
 
-#### Add Image Processing
+2. **Component-level Code Splitting**:
+   ```jsx
+   const HeavyComponent = dynamic(() => import('../components/HeavyComponent'));
+   ```
 
-```bash
-# Install sharp for image optimization
-npm install sharp
-```
+### 3. Caching Strategies
+1. **Service Worker**:
+   ```js
+   // public/sw.js
+   const CACHE_NAME = 'cyads-cache-v1';
+   const urlsToCache = [
+     '/',
+     '/styles.css',
+     '/app.js',
+     '/logo.png'
+   ];
 
-Configure in `next.config.js`:
+   self.addEventListener('install', event => {
+     event.waitUntil(
+       caches.open(CACHE_NAME)
+         .then(cache => cache.addAll(urlsToCache))
+     );
+   });
+   ```
 
-```javascript
-module.exports = {
-  images: {
-    domains: ['zvyuurbieuionummrcqi.supabase.co'], // Add your image domains
-    formats: ['image/avif', 'image/webp'], // Modern formats
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-  },
-};
-```
+2. **Next.js Cache Headers**:
+   ```js
+   // next.config.js
+   module.exports = {
+     async headers() {
+       return [
+         {
+           source: '/_next/static/:path*',
+           headers: [
+             {
+               key: 'Cache-Control',
+               value: 'public, max-age=31536000, immutable'
+             }
+           ]
+         }
+       ]
+     }
+   }
+   ```
 
-### 2. Bundle Size Reduction
+### 4. Performance Monitoring
+1. **Lighthouse CI**:
+   ```yaml
+   # .github/workflows/lighthouse.yml
+   name: Lighthouse
+   on: [push]
+   jobs:
+     lighthouse:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v2
+         - uses: actions/setup-node@v2
+         - run: npm install
+         - run: npm run build
+         - run: npm run start &
+         - uses: treosh/lighthouse-ci-action@v8
+           with:
+             urls: ['http://localhost:3000']
+             budgetPath: './lighthouse-budget.json'
+   ```
 
-#### Analyze Bundle
+2. **Real User Monitoring**:
+   ```js
+   // _app.js
+   export function reportWebVitals(metric) {
+     if (process.env.NODE_ENV === 'production') {
+       fetch('/api/analytics', {
+         method: 'POST',
+         body: JSON.stringify(metric)
+       });
+     }
+   }
+   ```
 
-```bash
-# Install bundle analyzer
-npm install @next/bundle-analyzer --save-dev
-```
-
-Update `next.config.js`:
-
-```javascript
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-});
-
-module.exports = withBundleAnalyzer({
-  // Your Next.js config
-});
-```
-
-Run analysis:
-```bash
-ANALYZE=true npm run build
-```
-
-#### Optimize Dependencies
-
-1. Review large dependencies
-2. Replace heavy libraries with lighter alternatives
-3. Use dynamic imports for non-critical components
-
-```jsx
-// Example of dynamic import
-const HeavyComponent = dynamic(() => import('@/components/HeavyComponent'), {
-  loading: () => <LoadingSpinner />,
-  ssr: false
-});
-```
-
-#### Tree Shaking
-
-Ensure your build is properly tree shaking unused code:
-
-```javascript
-// next.config.js
-module.exports = {
-  experimental: {
-    optimizePackageImports: [
-      'react-icons',
-      'lodash-es',
-      'date-fns'
-    ]
-  }
-};
-```
-
-### 3. Data Fetching Efficiency
-
-#### Implement SWR for Client-Side Data
-
-```bash
-npm install swr
-```
-
-```jsx
-import useSWR from 'swr';
-
-function FeaturedAds() {
-  const { data, error } = useSWR('/api/featured-ads', fetcher);
-  
-  if (error) return <div>Failed to load</div>;
-  if (!data) return <div>Loading...</div>;
-  
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {data.map(ad => (
-        <AdCard key={ad.id} ad={ad} />
-      ))}
-    </div>
-  );
-}
-```
-
-#### Optimize Supabase Queries
-
-```jsx
-// Before
-const { data } = await supabase
-  .from('ads')
-  .select('*')
-  .eq('status', 'published');
-
-// After - only select needed columns
-const { data } = await supabase
-  .from('ads')
-  .select('id, title, price, main_image_url, location')
-  .eq('status', 'published')
-  .limit(20);
-```
-
-#### Implement Pagination
-
-```jsx
-async function loadMoreAds(lastId) {
-  const { data } = await supabase
-    .from('ads')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .lt('id', lastId)
-    .limit(10);
-  
-  return data;
-}
-```
-
-### 4. Rendering Performance
-
-#### Optimize Re-renders
-
-```jsx
-// Use React.memo for expensive components
-const AdCard = React.memo(function AdCard({ ad }) {
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      {/* Ad content */}
-    </div>
-  );
-});
-```
-
-#### Virtualize Long Lists
-
-```bash
-npm install react-window
-```
-
-```jsx
-import { FixedSizeList as List } from 'react-window';
-
-function AdList({ ads }) {
-  const Row = ({ index, style }) => (
-    <div style={style}>
-      <AdCard ad={ads[index]} />
-    </div>
-  );
-
-  return (
-    <List
-      height={600}
-      itemCount={ads.length}
-      itemSize={300}
-      width="100%"
-    >
-      {Row}
-    </List>
-  );
-}
-```
-
-#### Use useCallback for Event Handlers
-
-```jsx
-const handleSearch = useCallback((query) => {
-  // Search logic
-}, []);
-```
-
-### 5. Caching Strategies
-
-#### Service Worker for Offline Support
-
-```javascript
-// public/sw.js
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open('cyads-v1').then((cache) => {
-      return cache.addAll([
-        '/',
-        '/index.html',
-        '/styles/main.css',
-        '/scripts/main.js',
-        '/images/logo.png'
-      ]);
-    })
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
-  );
-});
-```
-
-#### API Response Caching
-
-```javascript
-// pages/api/ads.js
-export default async function handler(req, res) {
-  res.setHeader(
-    'Cache-Control',
-    'public, s-maxage=60, stale-while-revalidate=120'
-  );
-  
-  // API logic
-}
-```
-
-#### CDN Caching
-
-Configure in `next.config.js`:
-
-```javascript
-module.exports = {
-  headers: async () => [
-    {
-      source: '/_next/static/:path*',
-      headers: [
-        {
-          key: 'Cache-Control',
-          value: 'public, max-age=31536000, immutable',
-        },
-      ],
-    },
-  ],
-};
-```
-
-### Implementation Timeline
-
-1. **Week 1**: Image optimization and bundle analysis
-2. **Week 2**: Data fetching improvements and pagination
-3. **Week 3**: Rendering optimizations and memoization
-4. **Week 4**: Caching strategies implementation
-5. **Ongoing**: Performance monitoring and tuning
-
-## Monitoring Tools
-
-1. **Lighthouse**: For performance audits
-2. **WebPageTest**: For real-world performance metrics
-3. **Sentry**: For performance monitoring in production
-4. **Custom Metrics**: Track key performance indicators
-
-```javascript
-// Track important metrics
-const trackMetrics = () => {
-  const metrics = {
-    loadTime: window.performance.timing.loadEventEnd - window.performance.timing.navigationStart,
-    firstPaint: window.performance.getEntriesByName('first-paint')[0].startTime,
-    firstContentfulPaint: window.performance.getEntriesByName('first-contentful-paint')[0].startTime,
-  };
-  
-  // Send to analytics
-  supabase.from('performance_metrics').insert(metrics);
-};
-
-// Run after page load
-window.addEventListener('load', trackMetrics);
-```
-
-## Key Performance Indicators
-
-1. **First Contentful Paint (FCP)**: < 1.8s
-2. **Largest Contentful Paint (LCP)**: < 2.5s
-3. **Time to Interactive (TTI)**: < 3.5s
-4. **Total Blocking Time (TBT)**: < 200ms
-5. **Cumulative Layout Shift (CLS)**: < 0.1
-
-By implementing these optimizations, CyAds will achieve significantly better performance across all devices and network conditions.
+## Implementation Timeline
+1. Phase 1 (2 weeks): Image optimization and code splitting
+2. Phase 2 (1 week): Caching strategies
+3. Phase 3 (Ongoing): Performance monitoring and continuous optimization

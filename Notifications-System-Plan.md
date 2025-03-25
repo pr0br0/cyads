@@ -1,397 +1,220 @@
 # Notifications System Implementation Plan for CyAds
 
-## Overview
+## Current Status
+- No real-time notifications for messages or ad updates
+- Users must manually refresh to see updates
+- No notification preferences system
 
-Implement a comprehensive notifications system to:
+## Implementation Strategy
 
-1. Alert users about new messages
-2. Notify about ad approvals/rejections
-3. Send saved search alerts
-4. Provide system updates
+### 1. Database Setup
+1. **Create Notifications Table**:
+   ```sql
+   CREATE TABLE notifications (
+     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     type TEXT NOT NULL, -- 'message', 'ad_approved', 'ad_viewed', etc.
+     content JSONB NOT NULL,
+     is_read BOOLEAN DEFAULT false,
+     created_at TIMESTAMPTZ DEFAULT NOW()
+   );
 
-## Architecture
+   CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+   ```
 
-### 1. Database Schema
+2. **Enable Realtime for Notifications**:
+   ```js
+   // lib/supabase.js
+   const notificationsChannel = supabase
+     .channel('notifications')
+     .on(
+       'postgres_changes',
+       {
+         event: 'INSERT',
+         schema: 'public',
+         table: 'notifications'
+       },
+       (payload) => {
+         // Handle new notification
+       }
+     )
+     .subscribe();
+   ```
 
-```sql
--- Create notifications table
-CREATE TABLE notifications (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  type VARCHAR(50) NOT NULL, -- 'message', 'ad_status', 'search_alert', 'system'
-  title VARCHAR(100) NOT NULL,
-  message TEXT NOT NULL,
-  is_read BOOLEAN DEFAULT false,
-  related_id UUID, -- ad_id, message_id, etc.
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+### 2. Backend Services
+1. **Notification Service**:
+   ```js
+   // services/notifications.js
+   export async function createNotification(user_id, type, content) {
+     const { data, error } = await supabase
+       .from('notifications')
+       .insert([{ user_id, type, content }])
+       .select();
+     
+     if (error) throw error;
+     return data;
+   }
 
--- Create trigger for updated_at
-CREATE TRIGGER set_notifications_updated_at
-BEFORE UPDATE ON notifications
-FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+   export async function markAsRead(notification_id) {
+     const { error } = await supabase
+       .from('notifications')
+       .update({ is_read: true })
+       .eq('id', notification_id);
+     
+     if (error) throw error;
+   }
+   ```
 
--- Create index for faster queries
-CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_notifications_unread ON notifications(user_id, is_read) WHERE is_read = false;
-```
+2. **Trigger Notifications**:
+   ```js
+   // Example: When a new message is received
+   export async function handleNewMessage(message) {
+     await createNotification(
+       message.receiver_id,
+       'message',
+       {
+         sender_id: message.sender_id,
+         ad_id: message.ad_id,
+         preview: message.content.substring(0, 50)
+       }
+     );
+   }
+   ```
 
-### 2. Notification Types
+### 3. Frontend Components
+1. **Notification Bell Component**:
+   ```jsx
+   const NotificationBell = () => {
+     const [notifications, setNotifications] = useState([]);
+     const [unreadCount, setUnreadCount] = useState(0);
+     const [isOpen, setIsOpen] = useState(false);
 
-1. **Messages**: When a user receives a new message
-2. **Ad Status**: When an ad is approved/rejected/expired
-3. **Search Alerts**: When new ads match saved searches
-4. **System**: Important platform updates
+     useEffect(() => {
+       // Initial load
+       fetchNotifications();
+       
+       // Realtime subscription
+       const channel = supabase
+         .channel('user_notifications')
+         .on(
+           'postgres_changes',
+           {
+             event: 'INSERT',
+             schema: 'public',
+             table: 'notifications',
+             filter: `user_id=eq.${user.id}`
+           },
+           (payload) => {
+             setNotifications(prev => [payload.new, ...prev]);
+             setUnreadCount(prev => prev + 1);
+           }
+         )
+         .subscribe();
 
-### 3. Backend Implementation
+       return () => supabase.removeChannel(channel);
+     }, []);
 
-#### Notification Service
+     const fetchNotifications = async () => {
+       const { data } = await supabase
+         .from('notifications')
+         .select('*')
+         .eq('user_id', user.id)
+         .order('created_at', { ascending: false });
+       
+       setNotifications(data);
+       setUnreadCount(data.filter(n => !n.is_read).length);
+     };
 
-```javascript
-// lib/notifications.js
-import { supabase } from './supabase';
+     const markAsRead = async (id) => {
+       await supabase
+         .from('notifications')
+         .update({ is_read: true })
+         .eq('id', id);
+       
+       setUnreadCount(prev => prev - 1);
+     };
 
-export async function createNotification(user_id, type, title, message, related_id = null) {
-  const { data, error } = await supabase
-    .from('notifications')
-    .insert([{
-      user_id,
-      type,
-      title,
-      message,
-      related_id
-    }])
-    .select()
-    .single();
+     return (
+       <div className="notification-bell">
+         <button onClick={() => setIsOpen(!isOpen)}>
+           <BellIcon />
+           {unreadCount > 0 && <span className="badge">{unreadCount}</span>}
+         </button>
+         
+         {isOpen && (
+           <div className="notification-dropdown">
+             {notifications.map(notification => (
+               <NotificationItem 
+                 key={notification.id}
+                 notification={notification}
+                 onMarkAsRead={markAsRead}
+               />
+             ))}
+           </div>
+         )}
+       </div>
+     );
+   };
+   ```
 
-  if (error) {
-    console.error('Error creating notification:', error);
-    return null;
-  }
+2. **Notification Preferences**:
+   ```jsx
+   const NotificationPreferences = () => {
+     const [preferences, setPreferences] = useState({
+       messages: true,
+       ad_approved: true,
+       ad_viewed: true,
+       promotions: false
+     });
 
-  return data;
-}
+     const handleChange = (e) => {
+       setPreferences({
+         ...preferences,
+         [e.target.name]: e.target.checked
+       });
+     };
 
-export async function getUnreadNotifications(user_id) {
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('user_id', user_id)
-    .eq('is_read', false)
-    .order('created_at', { ascending: false });
+     const savePreferences = async () => {
+       await supabase
+         .from('profiles')
+         .update({ notification_preferences: preferences })
+         .eq('id', user.id);
+     };
 
-  if (error) {
-    console.error('Error fetching notifications:', error);
-    return [];
-  }
+     return (
+       <div>
+         <Checkbox
+           name="messages"
+           checked={preferences.messages}
+           onChange={handleChange}
+           label="New Messages"
+         />
+         <Checkbox
+           name="ad_approved"
+           checked={preferences.ad_approved}
+           onChange={handleChange}
+           label="Ad Approved"
+         />
+         <Checkbox
+           name="ad_viewed"
+           checked={preferences.ad_viewed}
+           onChange={handleChange}
+           label="Ad Viewed"
+         />
+         <Checkbox
+           name="promotions"
+           checked={preferences.promotions}
+           onChange={handleChange}
+           label="Promotions"
+         />
+         <Button onClick={savePreferences}>Save Preferences</Button>
+       </div>
+     );
+   };
+   ```
 
-  return data;
-}
-
-export async function markAsRead(notification_id) {
-  const { data, error } = await supabase
-    .from('notifications')
-    .update({ is_read: true })
-    .eq('id', notification_id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error marking notification as read:', error);
-    return null;
-  }
-
-  return data;
-}
-```
-
-#### API Endpoints
-
-```javascript
-// pages/api/notifications.js
-import { supabase } from '@/lib/supabase';
-import { getUnreadNotifications, markAsRead } from '@/lib/notifications';
-
-export default async function handler(req, res) {
-  const { user } = await supabase.auth.api.getUserByCookie(req);
-  
-  if (!user) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  switch (req.method) {
-    case 'GET':
-      try {
-        const notifications = await getUnreadNotifications(user.id);
-        res.status(200).json(notifications);
-      } catch (error) {
-        res.status(500).json({ error: error.message });
-      }
-      break;
-
-    case 'POST':
-      try {
-        const { id } = req.body;
-        const notification = await markAsRead(id);
-        res.status(200).json(notification);
-      } catch (error) {
-        res.status(500).json({ error: error.message });
-      }
-      break;
-
-    default:
-      res.setHeader('Allow', ['GET', 'POST']);
-      res.status(405).end(`Method ${req.method} Not Allowed`);
-  }
-}
-```
-
-### 4. Real-time Notifications
-
-#### Supabase Realtime Subscription
-
-```javascript
-// components/NotificationProvider.jsx
-import { createClient } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
-
-export function NotificationProvider({ children, userId }) {
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    // Initial fetch
-    const fetchNotifications = async () => {
-      const { data } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('is_read', false)
-        .order('created_at', { ascending: false });
-      
-      setNotifications(data || []);
-      setUnreadCount(data?.length || 0);
-    };
-
-    fetchNotifications();
-
-    // Realtime subscription
-    const subscription = supabase
-      .channel(`notifications:user_id=eq.${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`
-        },
-        (payload) => {
-          setNotifications(prev => [payload.new, ...prev]);
-          setUnreadCount(prev => prev + 1);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
-    };
-  }, [userId]);
-
-  const markAsRead = async (id) => {
-    const { data } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (data) {
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-      );
-      setUnreadCount(prev => prev - 1);
-    }
-  };
-
-  return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        markAsRead
-      }}
-    >
-      {children}
-    </NotificationContext.Provider>
-  );
-}
-```
-
-### 5. Frontend Components
-
-#### Notification Bell
-
-```jsx
-// components/NotificationBell.jsx
-import { Bell, Check } from 'lucide-react';
-import { useState } from 'react';
-import { useNotification } from '@/context/NotificationContext';
-
-export default function NotificationBell() {
-  const { notifications, unreadCount, markAsRead } = useNotification();
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <div className="relative">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-full hover:bg-gray-100 relative"
-      >
-        <Bell className="w-5 h-5" />
-        {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-            {unreadCount}
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 bg-white rounded-md shadow-lg overflow-hidden z-50">
-          <div className="py-1">
-            <div className="px-4 py-2 border-b flex justify-between items-center">
-              <h3 className="font-medium">Notifications</h3>
-              {unreadCount > 0 && (
-                <button 
-                  onClick={() => notifications.forEach(n => !n.is_read && markAsRead(n.id))}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Mark all as read
-                </button>
-              )}
-            </div>
-
-            {notifications.length === 0 ? (
-              <div className="px-4 py-3 text-center text-sm text-gray-500">
-                No new notifications
-              </div>
-            ) : (
-              <div className="max-h-96 overflow-y-auto">
-                {notifications.map(notification => (
-                  <div 
-                    key={notification.id}
-                    className={`px-4 py-3 border-b hover:bg-gray-50 ${!notification.is_read ? 'bg-blue-50' : ''}`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium">{notification.title}</h4>
-                        <p className="text-sm text-gray-600">{notification.message}</p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(notification.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                      {!notification.is_read && (
-                        <button 
-                          onClick={() => markAsRead(notification.id)}
-                          className="p-1 text-gray-400 hover:text-primary"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-```
-
-### 6. Email Notifications
-
-#### Email Service Integration
-
-```javascript
-// lib/email.js
-import { supabase } from './supabase';
-
-export async function sendEmailNotification(user_id, subject, html) {
-  // Get user email
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('email')
-    .eq('id', user_id)
-    .single();
-
-  if (error || !user) {
-    console.error('Error fetching user:', error);
-    return false;
-  }
-
-  // Send email via Supabase function
-  const { error: emailError } = await supabase
-    .rpc('send_email', {
-      to_email: user.email,
-      subject,
-      html
-    });
-
-  if (emailError) {
-    console.error('Error sending email:', emailError);
-    return false;
-  }
-
-  return true;
-}
-```
-
-#### Email Templates
-
-```javascript
-// templates/adApproved.js
-export function adApprovedTemplate(adTitle) {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #4f46e5;">Your Ad Has Been Approved!</h1>
-      <p>Your ad "${adTitle}" has been approved and is now live on CyAds.</p>
-      <p>You can view your ad by clicking the button below:</p>
-      <a href="${process.env.NEXT_PUBLIC_SITE_URL}/ads/${adId}" 
-         style="display: inline-block; padding: 10px 20px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 4px; margin-top: 10px;">
-        View Ad
-      </a>
-      <p style="margin-top: 20px;">Thank you for using CyAds!</p>
-    </div>
-  `;
-}
-```
-
-### 7. Implementation Timeline
-
-1. **Week 1**: Database setup and backend services
-2. **Week 2**: Real-time notification system
-3. **Week 3**: Frontend components and UI
-4. **Week 4**: Email notifications and testing
-5. **Ongoing**: Monitoring and improvements
-
-## Key Features
-
-1. **Real-time updates** via Supabase subscriptions
-2. **Unread count** in the notification bell
-3. **Mark as read** functionality
-4. **Email notifications** for important events
-5. **Mobile-friendly** notification interface
-6. **Customizable preferences** (future enhancement)
-
-This notification system will significantly improve user engagement and keep users informed about important activities on the platform.
+## Implementation Timeline
+1. Phase 1 (1 week): Database setup and backend services
+2. Phase 2 (1 week): Notification components and real-time integration
+3. Phase 3 (1 week): Preferences system and testing
+4. Phase 4 (Ongoing): Additional notification types and optimizations
