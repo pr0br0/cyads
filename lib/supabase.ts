@@ -1,18 +1,30 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database, TypedSupabaseClient } from '@/types/database'
 
-// Initialize Supabase client with environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zvyuurbieuionummrcqi.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2eXV1cmJpZXVpb251bW1yY3FpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI8NDA0MTIsImV4cCI6MjA1ODQxNjQxMn0.IKZgwRcmGPhYHDuvkRAco9lWk5GXjAT568ZD3XmodEU'
+// Initialize Supabase client - environment variables required
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing Supabase environment variables - please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY'
+  )
+}
 
 // Create a typed Supabase client for server-side usage
-export const supabase: TypedSupabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey)
+export const supabase: TypedSupabaseClient = createClient<Database>(
+  supabaseUrl as string, 
+  supabaseAnonKey as string
+)
 
 // Function to create a client-side Supabase client
 let clientSideSupabase: TypedSupabaseClient | null = null
 export function getSupabaseClient(): TypedSupabaseClient {
   if (!clientSideSupabase && typeof window !== 'undefined') {
-    clientSideSupabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+    clientSideSupabase = createClient<Database>(
+      supabaseUrl as string,
+      supabaseAnonKey as string
+    )
   }
   return clientSideSupabase || supabase
 }
