@@ -8,11 +8,11 @@ import { useTheme } from 'next-themes';
 import { Button } from './ui/button';
 
 export default function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
   
-  const toggleMenu = () => {
+  const toggleMenu = (): void => {
     setIsMenuOpen(!isMenuOpen);
   };
 
@@ -40,7 +40,11 @@ export default function Header() {
 
         <div className="flex items-center gap-2">
           {/* Theme Switcher */}
-          <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
           
@@ -55,7 +59,12 @@ export default function Header() {
           </div>
           
           {/* Mobile menu button */}
-          <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMenu}>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden" 
+            onClick={toggleMenu}
+          >
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
@@ -87,4 +96,4 @@ export default function Header() {
       )}
     </header>
   );
-} 
+}
