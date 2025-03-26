@@ -7,7 +7,9 @@ import { Menu, X, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from './ui/button';
 
-export default function Header() {
+import { HeaderProps } from '@/types/header';
+
+export default function Header({ className = '' }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
@@ -40,13 +42,17 @@ export default function Header() {
 
         <div className="flex items-center gap-2">
           {/* Theme Switcher */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
+            aria-label="Toggle theme"
+            icon={theme === 'dark' ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
+          />
           
           {/* Auth buttons */}
           <div className="hidden md:flex gap-2">
