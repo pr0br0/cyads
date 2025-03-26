@@ -1,4 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
+import { handleApiError } from './error-handling';
 import type { Database, TypedSupabaseClient } from '@/types/database'
 
 // Initialize Supabase client - environment variables required
@@ -6,9 +7,11 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
+  const error = new Error(
     'Missing Supabase environment variables - please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY'
-  )
+  );
+  handleApiError(error);
+  throw error;
 }
 
 // Create a typed Supabase client for server-side usage
@@ -90,8 +93,8 @@ export async function getCategories(locale = 'en'): Promise<QueryResult<Category
     .order('name_en')
     
   if (error || !data) {
-    console.error('Error fetching categories:', error)
-    return []
+    handleApiError(error || new Error('No categories data returned'));
+    return [];
   }
   
   return data.map(category => ({
@@ -107,8 +110,8 @@ export async function getLocations(locale = 'en'): Promise<QueryResult<Location>
     .order('name_en')
     
   if (error || !data) {
-    console.error('Error fetching locations:', error)
-    return []
+    handleApiError(error || new Error('No locations data returned'));
+    return [];
   }
   
   return data.map(location => ({
@@ -147,8 +150,8 @@ export async function getFeaturedAds(locale = 'en', limit = 4): Promise<QueryRes
     .limit(limit)
     
   if (error || !data) {
-    console.error('Error fetching featured ads:', error)
-    return []
+    handleApiError(error || new Error('No featured ads data returned'));
+    return [];
   }
   
   return data.map(ad => ({

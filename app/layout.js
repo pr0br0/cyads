@@ -18,6 +18,8 @@ export const metadata = {
   },
 };
 
+import ErrorBoundary from '@/components/ErrorBoundary';
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -26,7 +28,11 @@ export default function RootLayout({ children }) {
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <div className="flex min-h-screen flex-col">
               <Header />
-              <main className="flex-1">{children}</main>
+              <main className="flex-1">
+                <ErrorBoundary>
+                  {children}
+                </ErrorBoundary>
+              </main>
               <Footer />
             </div>
           </ThemeProvider>
@@ -34,4 +40,4 @@ export default function RootLayout({ children }) {
       </body>
     </html>
   );
-} 
+}
