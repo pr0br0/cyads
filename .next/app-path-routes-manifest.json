@@ -1,0 +1,13 @@
+{
+  "/auth/callback/route": "/auth/callback",
+  "/_not-found/page": "/_not-found",
+  "/ads/[id]/page": "/ads/[id]",
+  "/ads/create/page": "/ads/create",
+  "/auth/signin/page": "/auth/signin",
+  "/auth/signup/page": "/auth/signup",
+  "/categories/[slug]/page": "/categories/[slug]",
+  "/dashboard/page": "/dashboard",
+  "/page": "/",
+  "/test/error-boundary/page": "/test/error-boundary",
+  "/test/error-test/page": "/test/error-test"
+}

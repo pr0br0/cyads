@@ -1,4 +1,13 @@
 {
+  "/auth/callback/route": "app/auth/callback/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/ads/[id]/page": "app/ads/[id]/page.js",
+  "/ads/create/page": "app/ads/create/page.js",
   "/auth/signin/page": "app/auth/signin/page.js",
-  "/auth/signup/page": "app/auth/signup/page.js"
+  "/auth/signup/page": "app/auth/signup/page.js",
+  "/categories/[slug]/page": "app/categories/[slug]/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/page": "app/page.js",
+  "/test/error-boundary/page": "app/test/error-boundary/page.js",
+  "/test/error-test/page": "app/test/error-test/page.js"
 }

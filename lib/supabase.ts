@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { handleApiError } from './error-handling';
-import type { Database, TypedSupabaseClient } from '@/types/database'
+import type { Database } from './database.types'
+export type TypedSupabaseClient = ReturnType<typeof createClient<Database>>
 
 // Initialize Supabase client - environment variables required
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -121,13 +122,9 @@ export async function getLocations(locale = 'en'): Promise<QueryResult<Location>
 }
 
 type AdWithRelations = Database['public']['Tables']['ads']['Row'] & {
-  categories: Category
-  locations: Location
-  users: {
-    id: string
-    first_name: string | null
-    last_name: string | null
-  }
+  categories: Database['public']['Tables']['categories']['Row']
+  locations: Database['public']['Tables']['locations']['Row']
+  users: Database['public']['Tables']['users']['Row']
 }
 
 export async function getFeaturedAds(locale = 'en', limit = 4): Promise<QueryResult<Ad>> {
