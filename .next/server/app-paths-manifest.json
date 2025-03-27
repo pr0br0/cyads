@@ -1,6 +1,6 @@
 {
-  "/auth/callback/route": "app/auth/callback/route.js",
   "/_not-found/page": "app/_not-found/page.js",
+  "/auth/callback/route": "app/auth/callback/route.js",
   "/ads/[id]/page": "app/ads/[id]/page.js",
   "/ads/create/page": "app/ads/create/page.js",
   "/auth/signin/page": "app/auth/signin/page.js",

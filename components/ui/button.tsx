@@ -41,14 +41,14 @@ interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, loading, icon, children, ...props }, ref) => {
-    const Comp = asChild ? React.Fragment : "button";
+    const Comp = asChild ? "span" : "button";
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }), {
+        className={asChild ? undefined : cn(buttonVariants({ variant, size, className }), {
           'opacity-75 pointer-events-none': loading,
         })}
-        ref={ref}
-        disabled={loading || props.disabled}
+        ref={asChild ? undefined : ref}
+        disabled={asChild ? undefined : loading || props.disabled}
         {...props}
       >
         {loading ? (

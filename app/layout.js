@@ -20,6 +20,8 @@ export const metadata = {
 
 import ErrorBoundary from '@/components/ErrorBoundary';
 
+import '../sentry.client.config';
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>

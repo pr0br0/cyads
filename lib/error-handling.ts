@@ -1,4 +1,5 @@
 import { toast } from 'react-hot-toast';
+import { captureException } from './sentry';
 
 type ErrorWithMessage = {
   message: string;
@@ -23,10 +24,16 @@ function toErrorWithMessage(maybeError: unknown): ErrorWithMessage {
   }
 }
 
-export function handleApiError(error: unknown): void {
+export function handleApiError(error: unknown, context = {}): void {
   const errorWithMessage = toErrorWithMessage(error);
-  console.error('API Error:', errorWithMessage);
   
+  // Log to Sentry
+  captureException(errorWithMessage, {
+    ...context,
+    type: 'API_ERROR'
+  });
+
+  // Show user-friendly message
   toast.error(errorWithMessage.message, {
     position: 'bottom-center',
     duration: 5000

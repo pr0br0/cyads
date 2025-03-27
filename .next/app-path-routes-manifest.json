@@ -1,6 +1,6 @@
 {
-  "/auth/callback/route": "/auth/callback",
   "/_not-found/page": "/_not-found",
+  "/auth/callback/route": "/auth/callback",
   "/ads/[id]/page": "/ads/[id]",
   "/ads/create/page": "/ads/create",
   "/auth/signin/page": "/auth/signin",
