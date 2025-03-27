@@ -1,4 +1,34 @@
 # Local environment files
 .env.local
 .env*.local
-node_modules
+
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Build files
+/.next/
+/out/
+/build
+
+# Cache
+.next/cache
+
+# Testing
+/coverage
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+.DS_Store
+*.pem
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
